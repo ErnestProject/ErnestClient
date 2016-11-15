@@ -1,0 +1,10 @@
+[Global]
+VERSION 								= ErnestClient vX.Y.Z
+
+[Locations]
+VPN_BINARIES_URL 				= <openvpn binaries url>
+VPN_CONFIG_FILE_URL 		= <openvpn config file url>
+TUN_TAP_INSTALLER_URL 	= <tuntap installer url>
+
+[API]
+API_HOST = <api hostname: myserver.org>

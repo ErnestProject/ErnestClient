@@ -1,3 +1,11 @@
+## CUSTOMIZED IGNORE INSTRUCTIONS ##
+*.cfg
+tmp/
+
+
+
+
+## AUTO-GENERATED IGNORE INSTRUCTIONS ##
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
