@@ -7,7 +7,7 @@ if euid != 0:
     # the next line replaces the currently-running process with the sudo
     os.execlpe('sudo', *args)
 
-with open('banner.bnr', 'r') as banner:
+with open('banners/banner.bnr', 'r') as banner:
     print(banner.read())
 
 # Checking Instance IP
@@ -83,7 +83,7 @@ print('    |_ Nearly available\n')
 print('--> Launching Steam Client...')
 steam_process = subprocess.Popen("open -a Steam", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
-with open('middle.bnr', 'r') as middle:
+with open('banners/middle.bnr', 'r') as middle:
     print(middle.read())
 input('\n')
 
@@ -94,5 +94,5 @@ print('    |_ Done\n')
 print('--> Sending Instance kill signal...')
 print('    |_ Disabled for now\n')
 
-with open('footer.bnr', 'r') as footer:
+with open('banners/footer.bnr', 'r') as footer:
     print(footer.read())
