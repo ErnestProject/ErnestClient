@@ -46,24 +46,26 @@ else:
 
 
 print(' - Sending Steam login query...')
+print('   |_ Disabled for now\n')
 
-params = urllib.parse.urlencode({'iip': instance_ip, 'l': steam_login, 'p': steam_password})
-headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
-conn = http.client.HTTPConnection(api_host)
-conn.request("POST", "/test/request_login.php", params, headers)
-res = conn.getresponse()
-sRes = res.read().decode('UTF-8')
-conn.close()
+# params = urllib.parse.urlencode({'iip': instance_ip, 'l': steam_login, 'p': steam_password})
+# headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
+# conn = http.client.HTTPConnection(api_host)
+# conn.request("POST", "/test/request_login.php", params, headers)
+# res = conn.getresponse()
+# sRes = res.read().decode('UTF-8')
+# conn.close()
 
-if sRes == "Steam is starting. Please wait...":
-	print('   |_ Sent (account: ' + steam_login + ')\n')
-else:
-	sys.exit('ERROR: Login action failed')
+# if sRes == "Steam is starting. Please wait...":
+# 	print('   |_ Sent (account: ' + steam_login + ')\n')
+# else:
+# 	sys.exit('ERROR: Login action failed')
 
 
 
 print(' - Connecting to VPN tunnel...')
-vpn_process = subprocess.Popen("./vpn.py " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+#vpn_process = subprocess.Popen("./vpn.py " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+vpn_process = subprocess.Popen("./vpn.py " + instance_ip, shell=True)
 print('   |_ Connected (pid: ' + str(vpn_process.pid) + ')\n')
 
 
