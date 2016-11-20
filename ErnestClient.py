@@ -77,13 +77,15 @@ vpn_process = subprocess.Popen("./vpn.py " + instance_ip, stdout=subprocess.PIPE
 #vpn_process = subprocess.Popen("./vpn.py " + instance_ip, shell=True)
 print('    |_ Connected (pid: ' + str(vpn_process.pid) + ')\n')
 
+print('--> Opening Steam Server login through RDP...')
+print('    |_ Nearly available\n')
+
 print('--> Launching Steam Client...')
 steam_process = subprocess.Popen("open -a Steam", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
 with open('middle.bnr', 'r') as middle:
     print(middle.read())
 input('\n')
-print(' ')
 
 print('--> Disconnecting VPN tunnel...')
 vpn_process.terminate()
