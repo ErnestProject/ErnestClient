@@ -1,5 +1,5 @@
 ## CUSTOMIZED IGNORE INSTRUCTIONS ##
-*.cfg
+secret.cfg
 tmp/
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, subprocess, re, configparser, signal
+import os, sys, subprocess, re, configparser, signal, fileinput
 from urllib.request import urlretrieve
 
 euid = os.geteuid()
@@ -27,10 +27,8 @@ else:
 
 if config.has_section('Locations') \
     and config.has_option('Locations', 'VPN_BINARIES_URL') \
-    and config.has_option('Locations', 'VPN_CONFIG_FILE_URL') \
     and config.has_option('Locations', 'TUN_TAP_INSTALLER_URL'):
     vpn_binaries_url = config['Locations']['VPN_BINARIES_URL']
-    vpn_config_file_url = config['Locations']['VPN_CONFIG_FILE_URL'] + "?iip=" + instance_ip
     tun_tap_installer_url = config['Locations']['TUN_TAP_INSTALLER_URL']
 else:
     sys.exit('ERROR: Missing some entries in defaults.cfg file')
@@ -55,9 +53,12 @@ print("\nExtracting " + wd + "/vpn.tar.gz")
 subprocess.run(["tar", "zxvf", "vpn.tar.gz"], cwd = wd)
 
 # DOWNLOADING OpenVPN CONFIG FILE
-print("\nDownloading OpenVPN config file")
-print("GET " + vpn_config_file_url)
-urlretrieve(vpn_config_file_url, vpnwd + "/client.ovpn")
+print("\nEditing OpenVPN config file")
+search_exp = "%%INSTANCE_IP%%"
+for line in fileinput.input(vpnwd + "/client.ovpn", inplace=True):
+    if search_exp in line:
+        line = line.replace(search_exp, instance_ip)
+    sys.stdout.write(line)
 
 # CHECKING TUN/TAP INSTALL
 print("\nChecking TUN/TAP installation")
