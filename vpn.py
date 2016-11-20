@@ -11,6 +11,7 @@ if euid != 0:
 
 def sighandler(signum, frame):
     print('Killing VPN process (pid: ' + str(vpn_process.pid) + ')')
+    subprocess.call(["rm -rf .tmp"], shell=True)
     vpn_process.terminate()
     exit(0)
 
@@ -33,7 +34,7 @@ if config.has_section('Locations') \
 else:
     sys.exit('ERROR: Missing some entries in defaults.cfg file')
 
-wd = "tmp"
+wd = ".tmp"
 vpnwd = wd + "/vpn"
 
 # CLEARING WORKING DIR
