@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import http.client, urllib.parse, time, re, sys, os, configparser, subprocess
+import http.client, urllib.parse, time, re, sys, os, configparser, subprocess, json
 
 euid = os.geteuid()
 if euid != 0:
@@ -9,13 +9,6 @@ if euid != 0:
 
 with open('banners/banner.bnr', 'r') as banner:
     print(banner.read())
-
-# Checking Instance IP
-ip_pattern = re.compile("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-if len(sys.argv) > 1 and ip_pattern.match(sys.argv[1]):
-	instance_ip = sys.argv[1]
-else:
-	instance_ip = None
 
 config = configparser.ConfigParser()
 config.read_file(open('conf/defaults.cfg'))
@@ -32,31 +25,72 @@ if config.has_section('API') and config.has_option('API', 'API_HOST'):
 else:
 	sys.exit('ERROR: Missing api_host entry in defaults.cfg')
 
+# Checking Instance IP
+ip_pattern = re.compile("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+if len(sys.argv) > 1 and ip_pattern.match(sys.argv[1]):
+	instance_ip = sys.argv[1]
+	print('--> Starting Ernest on instance: ' + instance_ip + '\n')
+else:
+	print('--> Creating instance (this may take a while)')
+	#sys.exit("\n/!\ Client side instance creation is disabled for now./!\ \nTo launch Ernest on an existing instance, type: ./ErnestClient.py <instance_ip>\n")
 
-if instance_ip is None:
-	print('--> Creating instance...')
-	sys.exit("\n/!\ Client side instance creation is disabled for now./!\ \nTo launch Ernest on an existing instance, type: ./ErnestClient.py <instance_ip>\n")
+	#instance_ip = '52.19.91.72'
 
-	instance_ip = '52.19.91.72'
+	#time.sleep(2)
 
-	time.sleep(2)
-	# conn = http.client.HTTPConnection("localhost", 5000)
-	# conn.request("POST", "/instances")
-	# res = conn.getresponse()
-	# instance_ip = res.read().decode('UTF-8')
-	# conn.close()
+	print('    |_ Step 1 of 3 - Instance requesting...')
+	conn = http.client.HTTPConnection(api_host, 5000)
+	conn.request("POST", "/spot_instance_requests")
+	json_res = json.loads(conn.getresponse().read().decode('UTF-8'))
+	status = 'undefined'
 
-	ipPattern = re.compile("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-	if ipPattern.match(instance_ip):
+	request_id_pattern = re.compile("^sir\-[a-z0-9]{8}$")
+	if 'SpotInstanceRequestId' in json_res and request_id_pattern.match(json_res['SpotInstanceRequestId']):
+		request_id = json_res['SpotInstanceRequestId']
+
+		print('    |_ Step 2 of 3 - Waiting for request validation...')
+		while status not in ['price-too-low', 'fulfilled']:
+			time.sleep(1)
+			conn.request("GET", "/spot_instance_requests/" + request_id)
+			json_res = json.loads(conn.getresponse().read().decode('UTF-8'))
+			if 'Status' in json_res and 'Code' in json_res['Status']:
+				status = json_res['Status']['Code']
+	else:
+		conn.close()
+		sys.exit('ERROR: Unable to start instance (Unknown error)')
+
+	if status == 'price-too-low':
+		conn.close()
+		sys.exit('ERROR: Unable to start instance (bid price too high)')
+	elif status != 'fulfilled':
+		conn.close()
+		sys.exit('ERROR: Unable to start instance (Unknown error)')
+
+	print('    |_ Step 3 of 3 - Request approved, instance starting...')
+	instance_id = json_res['InstanceId']
+	state = 'undefined'
+	while state not in ['running']:
+		time.sleep(1)
+		conn.request("GET", "/instances/" + instance_id)
+		json_res = json.loads(conn.getresponse().read().decode('UTF-8'))
+		if 'State' in json_res and 'Name' in json_res['State']:
+			state = json_res['State']['Name']
+
+	if state != 'running':
+		conn.close()
+		sys.exit('ERROR: Unable to start instance (Unknown error)')
+
+	if 'PublicIpAddress' in json_res and ip_pattern.match(json_res['PublicIpAddress']):
+		instance_ip = json_res['PublicIpAddress']
 		print('    |_ Done (Instance IP: ' + instance_ip + ')\n')
 	else:
-		sys.exit('ERROR: Unable to start instance')
+		conn.close()
+		sys.exit('ERROR: Unable to start instance (Invalid IP)')
 
-else:
-	print('--> Starting Ernest on instance: ' + instance_ip + '\n')
+	conn.close()
 
-print('--> Sending Steam login query...')
-print('    |_ Disabled for now\n')
+# print('--> Sending Steam login query...')
+# print('    |_ Disabled for now\n')
 
 # params = urllib.parse.urlencode({'iip': instance_ip, 'l': steam_login, 'p': steam_password})
 # headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
@@ -76,6 +110,13 @@ print('--> Creating VPN tunnel...')
 vpn_process = subprocess.Popen("./vpn.py " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 #vpn_process = subprocess.Popen("./vpn.py " + instance_ip, shell=True)
 print('    |_ Connected (pid: ' + str(vpn_process.pid) + ')\n')
+
+print('--> Waiting for Instance OS initialization...')
+response = 1
+while response != 0:
+	time.sleep(1)
+	response = os.system('ping -c 1 10.8.0.1 > /dev/null 2>&1')
+print('    |_ Instance initialization completed\n')
 
 print('--> Opening Steam Server login through RDP...')
 print('    |_ Nearly available\n')
