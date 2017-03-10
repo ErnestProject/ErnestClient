@@ -14,16 +14,22 @@ config = configparser.ConfigParser()
 config.read_file(open('conf/defaults.cfg'))
 config.read('conf/secret.cfg')
 
+if config.has_section('API') and config.has_option('API', 'API_HOST'):
+	api_host = config['API']['API_HOST']
+else:
+	sys.exit('ERROR: Missing api_host entry in defaults.cfg')
+
+if config.has_section('Auth') and config.has_option('Auth', 'RDP_LOGIN') and config.has_option('Auth', 'RDP_PASSWORD'):
+	rdp_login 		= config['Auth']['RDP_LOGIN']
+	rdp_password 	= config['Auth']['RDP_PASSWORD']
+else:
+	sys.exit('ERROR: Unable to get RDP credentials')
+
 if config.has_section('Auth') and config.has_option('Auth', 'STEAM_LOGIN') and config.has_option('Auth', 'STEAM_PASSWORD'):
 	steam_login 		= config['Auth']['STEAM_LOGIN']
 	steam_password 	= config['Auth']['STEAM_PASSWORD']
 else:
 	sys.exit('ERROR: Unable to get Steam credentials')
-
-if config.has_section('API') and config.has_option('API', 'API_HOST'):
-	api_host = config['API']['API_HOST']
-else:
-	sys.exit('ERROR: Missing api_host entry in defaults.cfg')
 
 # Checking Instance IP
 ip_pattern = re.compile("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
@@ -119,7 +125,14 @@ while response != 0:
 print('    |_ Instance initialization completed\n')
 
 print('--> Opening Steam Server login through RDP...')
-print('    |_ Nearly available\n')
+rdp_process = subprocess.Popen("xfreerdp -u " + rdp_login + " -p " + rdp_password + " " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+print('    |_ Connected (pid: ' + str(rdp_process.pid) + ')\n')
+
+print('--> Waiting for Steam login (RDP window)...')
+rdp_process.communicate()
+print('    |_ RDP connection closed')
+subprocess.call(['osascript', '-e', 'tell application "XQuartz" to quit'])
+print('    |_ XQuartz terminated\n')
 
 print('--> Launching Steam Client...')
 steam_process = subprocess.Popen("open -a Steam", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
