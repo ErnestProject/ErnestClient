@@ -17,6 +17,8 @@ def sighandler(signum, frame):
 
 signal.signal(signal.SIGTERM, sighandler)
 
+crumbs_file_name = time.strftime("%y%m%d%H%M%S") + ".crmb"
+
 config = configparser.ConfigParser()
 config.read_file(open('conf/defaults.cfg'))
 
@@ -79,5 +81,6 @@ else:
 # CONNECTING VPN
 print("\nConnecting to AWS Instance via VPN tunnel")
 vpn_process = subprocess.Popen("./openvpn --config client.ovpn", shell=True, cwd = vpnwd, preexec_fn=os.setsid)
+with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("PROCESS=" + str(vpn_process.pid) + "\n");
 vpn_process.wait()
 

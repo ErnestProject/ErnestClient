@@ -12,11 +12,6 @@ with open('banners/banner.bnr', 'r') as banner:
 
 crumbs_file_name = time.strftime("%y%m%d%H%M%S") + ".crmb"
 
-# file.write(“This is a test”) 
-# file.write(“To add more lines.”)
-
-# file.close()
-
 config = configparser.ConfigParser()
 config.read_file(open('conf/defaults.cfg'))
 config.read('conf/secret.cfg')
@@ -137,6 +132,7 @@ print('    |_ Instance initialization completed\n')
 print('--> Opening Steam Server login through RDP...')
 rdp_process = subprocess.Popen("xfreerdp -u " + rdp_login + " -p " + rdp_password + " " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("PROCESS=" + str(rdp_process.pid) + "\n");
+with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("APPLICATION=XQuartz\n");
 print('    |_ Connected (pid: ' + str(rdp_process.pid) + ')\n')
 
 print('--> Waiting for Steam login (RDP window)...')
