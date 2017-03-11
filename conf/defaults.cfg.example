@@ -8,3 +8,4 @@ TUN_TAP_INSTALLER_URL 	= <tuntap installer url>
 
 [API]
 API_HOST = <api hostname or IP: myserver.org>
+API_PORT = <api port: 5000>

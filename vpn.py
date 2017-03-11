@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, subprocess, re, configparser, signal, fileinput
+import os, sys, subprocess, re, configparser, signal, fileinput, time
 from urllib.request import urlretrieve
 
 euid = os.geteuid()
