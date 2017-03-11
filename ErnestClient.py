@@ -1,132 +1,61 @@
 #!/usr/bin/env python3
-import http.client, urllib.parse, time, re, sys, os, configparser, subprocess, json
+import sys, subprocess
+import ernest.config, ernest.aws, utils.system, utils.crumbs
 
-euid = os.geteuid()
-if euid != 0:
-    args = ['sudo', sys.executable] + sys.argv + [os.environ]
-    # the next line replaces the currently-running process with the sudo
-    os.execlpe('sudo', *args)
+utils.system.grant_root_access()
 
-with open('banners/banner.bnr', 'r') as banner:
-    print(banner.read())
+utils.system.print_file('banners/banner.bnr')
 
-config = configparser.ConfigParser()
-config.read_file(open('conf/defaults.cfg'))
-config.read('conf/secret.cfg')
+utils.crumbs.init()
 
-if config.has_section('Auth') and config.has_option('Auth', 'STEAM_LOGIN') and config.has_option('Auth', 'STEAM_PASSWORD'):
-	steam_login 		= config['Auth']['STEAM_LOGIN']
-	steam_password 	= config['Auth']['STEAM_PASSWORD']
-else:
-	sys.exit('ERROR: Unable to get Steam credentials')
+config = ernest.config.get()
 
-if config.has_section('API') and config.has_option('API', 'API_HOST'):
-	api_host = config['API']['API_HOST']
-else:
-	sys.exit('ERROR: Missing api_host entry in defaults.cfg')
 
-# Checking Instance IP
-ip_pattern = re.compile("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-if len(sys.argv) > 1 and ip_pattern.match(sys.argv[1]):
-	instance_ip = sys.argv[1]
-	print('--> Starting Ernest on instance: ' + instance_ip + '\n')
+######## INIT ########
+if len(sys.argv) > 1:
+	if utils.system.is_ip_valid(sys.argv[1]):
+		instance_ip = sys.argv[1]
+		utils.crumbs.log('INSTANCE', instance_ip)
+		print('--> Starting Ernest on instance: ' + instance_ip + '\n')
+	else:
+		sys.exit('ERROR: Unknown argv')
 else:
 	print('--> Creating instance (this may take a while)')
-	#sys.exit("\n/!\ Client side instance creation is disabled for now./!\ \nTo launch Ernest on an existing instance, type: ./ErnestClient.py <instance_ip>\n")
-
-	#instance_ip = '52.19.91.72'
-
-	#time.sleep(2)
-
-	print('    |_ Step 1 of 3 - Instance requesting...')
-	conn = http.client.HTTPConnection(api_host, 5000)
-	conn.request("POST", "/spot_instance_requests")
-	json_res = json.loads(conn.getresponse().read().decode('UTF-8'))
-	status = 'undefined'
-
-	request_id_pattern = re.compile("^sir\-[a-z0-9]{8}$")
-	if 'SpotInstanceRequestId' in json_res and request_id_pattern.match(json_res['SpotInstanceRequestId']):
-		request_id = json_res['SpotInstanceRequestId']
-
-		print('    |_ Step 2 of 3 - Waiting for request validation...')
-		while status not in ['price-too-low', 'fulfilled']:
-			time.sleep(1)
-			conn.request("GET", "/spot_instance_requests/" + request_id)
-			json_res = json.loads(conn.getresponse().read().decode('UTF-8'))
-			if 'Status' in json_res and 'Code' in json_res['Status']:
-				status = json_res['Status']['Code']
-	else:
-		conn.close()
-		sys.exit('ERROR: Unable to start instance (Unknown error)')
-
-	if status == 'price-too-low':
-		conn.close()
-		sys.exit('ERROR: Unable to start instance (bid price too high)')
-	elif status != 'fulfilled':
-		conn.close()
-		sys.exit('ERROR: Unable to start instance (Unknown error)')
-
-	print('    |_ Step 3 of 3 - Request approved, instance starting...')
-	instance_id = json_res['InstanceId']
-	state = 'undefined'
-	while state not in ['running']:
-		time.sleep(1)
-		conn.request("GET", "/instances/" + instance_id)
-		json_res = json.loads(conn.getresponse().read().decode('UTF-8'))
-		if 'State' in json_res and 'Name' in json_res['State']:
-			state = json_res['State']['Name']
-
-	if state != 'running':
-		conn.close()
-		sys.exit('ERROR: Unable to start instance (Unknown error)')
-
-	if 'PublicIpAddress' in json_res and ip_pattern.match(json_res['PublicIpAddress']):
-		instance_ip = json_res['PublicIpAddress']
-		print('    |_ Done (Instance IP: ' + instance_ip + ')\n')
-	else:
-		conn.close()
-		sys.exit('ERROR: Unable to start instance (Invalid IP)')
-
-	conn.close()
-
-# print('--> Sending Steam login query...')
-# print('    |_ Disabled for now\n')
-
-# params = urllib.parse.urlencode({'iip': instance_ip, 'l': steam_login, 'p': steam_password})
-# headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
-# conn = http.client.HTTPConnection(api_host)
-# conn.request("POST", "/test/request_login.php", params, headers)
-# res = conn.getresponse()
-# sRes = res.read().decode('UTF-8')
-# conn.close()
-
-# if sRes == "Steam is starting. Please wait...":
-# 	print('   |_ Sent (account: ' + steam_login + ')\n')
-# else:
-# 	sys.exit('ERROR: Login action failed')
+	instance_ip = ernest.aws.pop_instance(config)
+	utils.crumbs.log('INSTANCE', instance_ip)
 
 
 print('--> Creating VPN tunnel...')
 vpn_process = subprocess.Popen("./vpn.py " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 #vpn_process = subprocess.Popen("./vpn.py " + instance_ip, shell=True)
+utils.crumbs.log('PROCESS', str(vpn_process.pid))
 print('    |_ Connected (pid: ' + str(vpn_process.pid) + ')\n')
 
 print('--> Waiting for Instance OS initialization...')
-response = 1
-while response != 0:
-	time.sleep(1)
-	response = os.system('ping -c 1 10.8.0.1 > /dev/null 2>&1')
-print('    |_ Instance initialization completed\n')
+ernest.aws.wait_for_os(instance_ip)
 
 print('--> Opening Steam Server login through RDP...')
-print('    |_ Nearly available\n')
+rdp_process = subprocess.Popen("yes | xfreerdp -u " + config['rdp']['login'] + " -p " + config['rdp']['password'] + " " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+utils.crumbs.log('PROCESS', str(rdp_process.pid))
+utils.crumbs.log('APPLICATION', 'XQuartz')
+print('    |_ Connected (pid: ' + str(rdp_process.pid) + ')\n')
+
+print('--> Waiting for Steam login (RDP window)...')
+rdp_process.communicate()
+print('    |_ RDP connection closed')
+subprocess.call(['osascript', '-e', 'tell application "XQuartz" to quit'])
+print('    |_ XQuartz terminated\n')
 
 print('--> Launching Steam Client...')
 steam_process = subprocess.Popen("open -a Steam", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
-with open('banners/middle.bnr', 'r') as middle:
-    print(middle.read())
+
+######## WAIT FOR USER ########
+utils.system.print_file('banners/middle.bnr')
 input('\n')
+
+
+######## CLOSING ########
 
 print('--> Disconnecting VPN tunnel...')
 vpn_process.terminate()
@@ -135,5 +64,6 @@ print('    |_ Done\n')
 print('--> Sending Instance kill signal...')
 print('    |_ Disabled for now\n')
 
-with open('banners/footer.bnr', 'r') as footer:
-    print(footer.read())
+utils.crumbs.clear()
+
+utils.system.print_file('banners/footer.bnr')
