@@ -10,6 +10,13 @@ if euid != 0:
 with open('banners/banner.bnr', 'r') as banner:
     print(banner.read())
 
+crumbs_file_name = time.strftime("%y%m%d%H%M%S") + ".crmb"
+
+# file.write(“This is a test”) 
+# file.write(“To add more lines.”)
+
+# file.close()
+
 config = configparser.ConfigParser()
 config.read_file(open('conf/defaults.cfg'))
 config.read('conf/secret.cfg')
@@ -35,6 +42,7 @@ else:
 ip_pattern = re.compile("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
 if len(sys.argv) > 1 and ip_pattern.match(sys.argv[1]):
 	instance_ip = sys.argv[1]
+	with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("INSTANCE=" + instance_ip + "\n");
 	print('--> Starting Ernest on instance: ' + instance_ip + '\n')
 else:
 	print('--> Creating instance (this may take a while)')
@@ -88,6 +96,7 @@ else:
 
 	if 'PublicIpAddress' in json_res and ip_pattern.match(json_res['PublicIpAddress']):
 		instance_ip = json_res['PublicIpAddress']
+		with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("INSTANCE=" + instance_ip + "\n");
 		print('    |_ Done (Instance IP: ' + instance_ip + ')\n')
 	else:
 		conn.close()
@@ -115,6 +124,7 @@ else:
 print('--> Creating VPN tunnel...')
 vpn_process = subprocess.Popen("./vpn.py " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 #vpn_process = subprocess.Popen("./vpn.py " + instance_ip, shell=True)
+with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("PROCESS=" + str(vpn_process.pid) + "\n");
 print('    |_ Connected (pid: ' + str(vpn_process.pid) + ')\n')
 
 print('--> Waiting for Instance OS initialization...')
@@ -126,6 +136,7 @@ print('    |_ Instance initialization completed\n')
 
 print('--> Opening Steam Server login through RDP...')
 rdp_process = subprocess.Popen("xfreerdp -u " + rdp_login + " -p " + rdp_password + " " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+with open("crumbs/" + crumbs_file_name, "a") as crumbs: crumbs.write("PROCESS=" + str(rdp_process.pid) + "\n");
 print('    |_ Connected (pid: ' + str(rdp_process.pid) + ')\n')
 
 print('--> Waiting for Steam login (RDP window)...')
@@ -147,6 +158,8 @@ print('    |_ Done\n')
 
 print('--> Sending Instance kill signal...')
 print('    |_ Disabled for now\n')
+
+os.remove("crumbs/" + crumbs_file_name)
 
 with open('banners/footer.bnr', 'r') as footer:
     print(footer.read())

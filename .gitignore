@@ -1,6 +1,7 @@
 ## CUSTOMIZED IGNORE INSTRUCTIONS ##
 secret.cfg
-tmp/
+.tmp/
+crumbs/*
 
 
 
