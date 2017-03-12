@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, subprocess
+import sys, subprocess, time
 import ernest.config, ernest.aws, utils.system, utils.crumbs
 
 utils.system.grant_root_access()
@@ -33,6 +33,8 @@ print('    |_ Connected (pid: ' + str(vpn_process.pid) + ')\n')
 
 print('--> Waiting for Instance OS initialization...')
 ernest.aws.wait_for_os(instance_ip)
+
+time.sleep(30)
 
 print('--> Opening Steam Server login through RDP...')
 rdp_process = subprocess.Popen("yes | xfreerdp -u " + config['rdp']['login'] + " -p " + config['rdp']['password'] + " " + instance_ip, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
